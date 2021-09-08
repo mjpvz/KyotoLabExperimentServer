@@ -1,6 +1,5 @@
 import boto3
 from decimal import Decimal
-from common.models import UserProfile
 
 
 def get_mturk_connection():
@@ -14,6 +13,9 @@ def get_mturk_connection():
         endpoint_url=settings.MTURK_HOST, 
         region_name='us-east-1')
 
+def is_mturk_sandbox():
+    """ Helper used by mturk models """
+    return settings.MTURK_SANDBOX
 
 def get_mturk_balance():
     response = get_mturk_connection().get_account_balance()
@@ -25,6 +27,7 @@ def get_or_create_mturk_worker(mturk_worker_id):
     if not mturk_worker_id:
         return None
     try:
+        from common.models import UserProfile
         return UserProfile.objects.get(mturk_worker_id=mturk_worker_id)
     except UserProfile.DoesNotExist:
         user, _ = User.objects.get_or_create(
@@ -61,7 +64,32 @@ def extract_mturk_attr(response, attr):
                     if found:
                         return found
 
-    raise Exception('Missing {} in response'.format(attr)
+    raise Exception('Missing {} in response'.format(attr))
+
+class ExternalQuestion:
+    """
+    An object for constructing an External Question. This imitates the original boto external question class
+    """
+    schema_url = "http://mechanicalturk.amazonaws.com/AWSMechanicalTurkDataSchemas/2006-07-14/ExternalQuestion.xsd"
+    template = '<ExternalQuestion xmlns="%(schema_url)s"><ExternalURL>%%(external_url)s</ExternalURL><FrameHeight>%%(frame_height)s</FrameHeight></ExternalQuestion>' % vars()
+
+    def __init__(self, external_url, frame_height):
+        self.external_url = external_url
+        self.frame_height = frame_height
+
+    def get_as_params(self, label='ExternalQuestion'):
+        return {label: self.get_as_xml()}
+
+    def get_as_xml(self):
+        return self.template % vars(self)
+
+
+
+def qualification_dict_to_boto(quals):
+    if not quals:
+        return []
+    return [qualification_to_boto(k, v) for k, v in quals.iteritems()]
+
 
 def qualification_to_boto(name, value):
     """ Convert a qualification to the format required by boto """

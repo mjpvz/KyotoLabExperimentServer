@@ -1,9 +1,11 @@
 from django.db import models
 from django.utils.timezone import now
 from django.contrib.auth.models import User
+import datetime
 
-# TODO make sure these exists/work/are needed
-from mturk.utils import get_mturk_connection, is_mturk_sandbox, \ 
+
+
+from mturk.utils import get_mturk_connection, is_mturk_sandbox, \
     get_or_create_mturk_worker, extract_mturk_attr, \
     qualification_dict_to_boto, ExternalQuestion
 
@@ -120,8 +122,9 @@ class ExperimentInstance(EmptyModelBase):
             frame_height=self.frame_height)
 
 
-     def get_hit_type(**kwargs):
-    """ Returns a HIT type and also manages attaching the requirements list. If no hit type exists yet with this configuration, a new one will be made """
+    def get_hit_type(**kwargs):
+        """ Returns a HIT type and also manages attaching the requirements list. 
+        If no hit type exists yet with this configuration, a new one will be made """
 
         # unpack from json if string
         if isinstance(self.requirements, basestring):
@@ -154,7 +157,7 @@ class ExperimentInstance(EmptyModelBase):
         return hit_type_id
 
 
-class Experiment(EmptyModelBase):
+class MtExperiment(EmptyModelBase):
     """ High-level separation of HITs.  """
 
     # settings used for generating new HITs
@@ -182,7 +185,7 @@ class Experiment(EmptyModelBase):
         max_length=255, default='mturk/experiments')
 
     def save(self, *args, **kwargs):
-        super(Experiment, self).save(*args, **kwargs)
+        super(MtExperiment, self).save(*args, **kwargs)
 
     def external_task_url(self):
 	    return settings.SITE_URL + reverse('mturk-external-task',args=(self.id,)) 
@@ -198,7 +201,7 @@ class ExperimentWorker(EmptyModelBase):
     """ The stats for a worker and a given experiment.  """
 
     #: Experiment being done
-    experiment = models.ForeignKey(Experiment, related_name='experiment_workers')
+    experiment = models.ForeignKey(MtExperiment, related_name='experiment_workers', on_delete=models.PROTECT)
 
     #: Worker performing the experiment
     worker = models.ForeignKey(UserProfile, related_name='experiment_workers', on_delete=models.PROTECT)
@@ -240,12 +243,15 @@ class ExperimentWorker(EmptyModelBase):
             self.worker.block(reason=reason, save=True)
 
 
-class MtHit(MtModelBase):
+class MtHit(EmptyModelBase):
     """ MTurk HIT (Human Intelligence Task, corresponds to a MTurk HIT object) """
 
     #: use Amazon's id
     mturk_id = models.CharField(max_length=128, primary_key=True)
     hit_type = models.CharField(max_length=128, blank=True) # will be set by ExperimentInstance.get_hit_type
+
+    experiment_instance = models.ForeignKey(
+        ExperimentInstance, related_name="hits", null=True, blank=True,on_delete=models.PROTECT)
 
     lifetime = models.IntegerField(null=True, blank=True)
     expired = models.BooleanField(default=False)
@@ -300,8 +306,7 @@ class MtHit(MtModelBase):
                 MaxAssignments=self.max_assignments,
                 RequesterAnnotation=json.dumps(
                     {
-                        u'experiment_id': self.hit_type.experiment.id,
-                        u'num_contents': self.contents.count(),
+                        u'experiment_id': self.experiment_instance.id,
                     })
             )
             self.id = extract_mturk_attr(response, 'HITId')
@@ -389,7 +394,7 @@ class MtHit(MtModelBase):
                 return False
 
         if not self.expired:
-            print('Expiring: {}'.format(self.id)
+            print('Expiring: {}'.format(self.id))
             get_mturk_connection().update_expiration_for_hit(
                 HITId=self.id,
                 ExpireAt = date # a date in the past will be expired as soon as possible
@@ -407,7 +412,7 @@ class MtHit(MtModelBase):
 
 
 
-class MtAssignment(MtModelBase):
+class MtAssignment(EmptyModelBase):
     """
     An assignment is a worker assigned to a HIT
     NOTE: Do not create this -- they should be automatically created when a participant opens a task.
@@ -509,7 +514,7 @@ class MtAssignment(MtModelBase):
 
         if self.status == 'R':
             print('Un-rejecting assignment: {}, experiment: {}, expired: {}'.format(
-                self.id, self.hit.hit_type.experiment.slug, self.hit.expired)
+                self.id, self.hit.hit_type.experiment.slug, self.hit.expired))
             if not feedback:
                 feedback = "We have un-rejected this assignment and approved it.  We are very sorry."
             self.reject_message = feedback
@@ -527,8 +532,8 @@ class MtAssignment(MtModelBase):
             resp = client.get_assignment(AssignmentId=self.id)
             status = extract_mturk_attr(resp,'AssignmentStatus')
             if not status == u'Approved':
-            print('Approving assignment: {}, experiment: {}, expired: {}'.format(
-                    self.id, self.hit.hit_type.experiment.slug, self.hit.expired)
+                print('Approving assignment: {}, experiment: {}, expired: {}'.format(
+                        self.id, self.hit.hit_type.experiment.slug, self.hit.expired))
                 self.approve_message = feedback
                 client.approve_assignment(
                     AssignmentId=self.id,
@@ -559,7 +564,7 @@ class MtAssignment(MtModelBase):
                 return
 
         print('Rejecting assignment: {}, experiment: {}, expired: {}'.format(
-            self.id, self.hit.hit_type.experiment.slug, self.hit.expired)
+            self.id, self.hit.hit_type.experiment.slug, self.hit.expired))
         get_mturk_connection().reject_assignment(
             AssignmentId=self.id, RequesterFeedback=feedback)
         self.reject_message = feedback
@@ -621,10 +626,6 @@ class MtAssignment(MtModelBase):
             self.time_active_ms = self.time_ms
         if self.submission_complete is None:
             self.submission_complete = False
-	if self.has_feedback and self.feedback:
-            self.feedback_length = len(self.feedback)
-        else:
-            self.feedback_length = 0
 
         if not self.wage and (self.time_ms or self.time_active_ms):
             time = self.time_active_ms if self.time_active_ms else self.time_ms

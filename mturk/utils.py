@@ -1,16 +1,21 @@
 import boto3
 from decimal import Decimal
-
+from labExperiment import settings
 
 def get_mturk_connection():
     """ Connect to the aws mturk client. Credentials are stored using awscli """
-    from config import settings_local
-    raise Exception('Still needs to be configured somehow...')
-    return boto3.client(
+    import os
+    session = boto3.session.Session(
+        profile_name=os.environ.get('AMT_BOTO_PROFILE'))
+
+    if is_mturk_sandbox():
+        host = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com' 
+    else:
+        host = 'https://mturk-requester.us-east-1.amazonaws.com'
+
+    return session.client(
         'mturk',
-        aws_access_key_id = settings_local.MTURK_AWS_ACCESS_KEY_ID,
-        aws_secret_access_key = settings_local.MTURK_AWS_SECRET_ACCESS_KEY,
-        endpoint_url=settings.MTURK_HOST, 
+        endpoint_url=host, 
         region_name='us-east-1')
 
 def is_mturk_sandbox():

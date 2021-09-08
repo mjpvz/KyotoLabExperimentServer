@@ -38,8 +38,8 @@ class UserProfile(EmptyModelBase):
     #: reason for blocking -- this will be displayed to the user to the user when the user tries to load a task
     blocked_reason = models.TextField(blank=True)
 
-    def __unicode__(self):
-        return self.user.__unicode__()
+    def __str__(self):
+        return self.user.__str__()
 
     def block(self, reason='', save=True):
         """ Block a user from performing *all* MTurk tasks.  Note that Amazon
@@ -78,6 +78,9 @@ class UserProfile(EmptyModelBase):
 
 class ExperimentInstance(EmptyModelBase):
     """ Settings for creating new HITs (existing HITs do not use this data).  """
+
+    #: experiment_slug: url and filename-safe name of this experiment instance. 
+    experiment_instance_slug = models.CharField(max_length=32, db_index=True)
 
     #: reward per HIT
     reward = models.DecimalField(decimal_places=4, max_digits=8)
@@ -160,29 +163,15 @@ class ExperimentInstance(EmptyModelBase):
 class MtExperiment(EmptyModelBase):
     """ High-level separation of HITs.  """
 
-    # settings used for generating new HITs
+    # settings used for generating new HITs, will be attached later
     new_hit_settings = models.ForeignKey(
         ExperimentInstance, related_name="experiments", null=True, blank=True,on_delete=models.PROTECT)
 
-    #: slug: url and filename-safe name of this experiment. is also the name used for templates.
-    slug = models.CharField(max_length=32, db_index=True)
-
-    #: A descriptive name of the experiment 
-    name = models.CharField(max_length=128)
-
-    # A description of the e
+    #: experiment_slug: url and filename-safe name of this experiment. 
+    experiment_slug = models.CharField(max_length=32, db_index=True, unique=True)
 
     #: whether there is a dedicated tutorial for this task
     has_tutorial = models.BooleanField(default=False) 
-
-    #: directory where the template is stored.  the templates for each
-    #: experiment are constructed as follows:
-    #:
-    #:     {template_dir}/{slug}.html              -- mturk task
-    #:     {template_dir}/{slug}_inst.html         -- instructions 
-    #:     {template_dir}/{slug}_tut.html          -- tutorial (if there is one)
-    template_dir = models.CharField(
-        max_length=255, default='mturk/experiments')
 
     def save(self, *args, **kwargs):
         super(MtExperiment, self).save(*args, **kwargs)
@@ -191,7 +180,19 @@ class MtExperiment(EmptyModelBase):
 	    return settings.SITE_URL + reverse('mturk-external-task',args=(self.id,)) 
 
     def template_name(self):
-        return os.path.join(self.template_dir, self.slug)
+        return os.path.join(self.template_dir, self.experiment_slug)
+
+    def template_dir(self):
+        # This contains the .html, .css and, .js files. 
+        return os.path.join('experiments','current', self.experiment_slug, 'files')
+    
+    def stimuli_dir(self):
+        return os.path.join('experiments','current', self.experiment_slug, 'stimuli')
+
+
+
+    def __str__(self):
+        return 'MtExperiment object, id={}, {}'.format(self.id, self.experiment_slug) 
 
 
 
@@ -252,6 +253,9 @@ class MtHit(EmptyModelBase):
 
     experiment_instance = models.ForeignKey(
         ExperimentInstance, related_name="hits", null=True, blank=True,on_delete=models.PROTECT)
+
+    experiment = models.ForeignKey(
+        MtExperiment, related_name="hits", null=True, blank=True,on_delete=models.PROTECT)
 
     lifetime = models.IntegerField(null=True, blank=True)
     expired = models.BooleanField(default=False)
@@ -397,13 +401,12 @@ class MtHit(EmptyModelBase):
             print('Expiring: {}'.format(self.id))
             get_mturk_connection().update_expiration_for_hit(
                 HITId=self.id,
-                ExpireAt = date # a date in the past will be expired as soon as possible
-             )
+                ExpireAt = date) # a date in the past will be expired as soon as possible
             self.expired = True
             self.save()
 
             return True
-    def __unicode__(self):
+    def __str__(self):
         return self.id
 
     class Meta:
@@ -508,13 +511,13 @@ class MtAssignment(EmptyModelBase):
         """ Send command to Amazon approving this assignment """
 
         if self.status == 'A':
-            self.hit.sync_status() # TODO check sync_status
+            self.hit.sync_status() 
             if self.status == 'A':
                 return
 
         if self.status == 'R':
-            print('Un-rejecting assignment: {}, experiment: {}, expired: {}'.format(
-                self.id, self.hit.hit_type.experiment.slug, self.hit.expired))
+            print('Un-rejecting assignment: {}, experiment instance: {}, expired: {}'.format(
+                self.id, self.hit.experiment_instance.experiment_instance_slug, self.hit.expired))
             if not feedback:
                 feedback = "We have un-rejected this assignment and approved it.  We are very sorry."
             self.reject_message = feedback
@@ -533,7 +536,7 @@ class MtAssignment(EmptyModelBase):
             status = extract_mturk_attr(resp,'AssignmentStatus')
             if not status == u'Approved':
                 print('Approving assignment: {}, experiment: {}, expired: {}'.format(
-                        self.id, self.hit.hit_type.experiment.slug, self.hit.expired))
+                        self.id, self.hit.hit_type.experiment.experiment_slug, self.hit.expired))
                 self.approve_message = feedback
                 client.approve_assignment(
                     AssignmentId=self.id,
@@ -564,7 +567,7 @@ class MtAssignment(EmptyModelBase):
                 return
 
         print('Rejecting assignment: {}, experiment: {}, expired: {}'.format(
-            self.id, self.hit.hit_type.experiment.slug, self.hit.expired))
+            self.id, self.hit.hit_type.experiment.experiment_slug, self.hit.expired))
         get_mturk_connection().reject_assignment(
             AssignmentId=self.id, RequesterFeedback=feedback)
         self.reject_message = feedback
@@ -633,7 +636,7 @@ class MtAssignment(EmptyModelBase):
 
         super(MtAssignment, self).save(*args, **kwargs)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.id
 
     class Meta:

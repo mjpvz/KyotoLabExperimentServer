@@ -19,5 +19,9 @@ from labExperiment import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.test)
+    # high level paths that should not return anything
+    path('experiments/<str:experiment_name>/<str:experiment_instance>/', views.experiment),
+    path('experiments', views.global_index),
+    path('', views.global_index),
+
 ]

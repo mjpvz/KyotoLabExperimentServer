@@ -1,0 +1,11 @@
+{
+    "experiment_instance": {
+        "test002": {
+            "participants": "5",
+            "conditions": [
+                0,
+                1
+            ]
+        }
+    }
+}

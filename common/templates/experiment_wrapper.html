@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Add a block here to load in content as need -->
+    {% load static %}
+    <script src="/static/experiments/current/{{experiment_name}}/files/{{experiment_instance}}.js"></script> 
+    <script src="/static/utils.js"></script> 
+    <link rel="stylesheet" type="text/css" href="/static/experiments/current/{{experiment_name}}/files/{{experiment_instance}}.css" />
+
+</head>
+
+<body>
+
+    <p> Well, that seems to work</p>
+    <p> {{title}}</p>
+    <p> {{experiment_name}}</p>
+    <p> {{experiment_instance}}</p>
+
+    {% block content %} {% endblock %}
+
+</body>
+</html>

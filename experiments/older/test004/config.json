@@ -1,0 +1,25 @@
+{
+    "experiment_instance": {
+        "v0": {
+            "participants": "5",
+            "conditions": [
+                0,
+                1,
+                2
+            ]
+        },
+        "v1": {
+            "participants": "5",
+            "conditions": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "title": "Placeholder title",
+            "description": "description palceholder",
+            "keywords": "some words",
+            "reward": "2"
+        }
+    }
+}

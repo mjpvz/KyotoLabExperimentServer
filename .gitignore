@@ -2,7 +2,8 @@
 labExperiment/settings.py
 labExperiment/keys/* 
 
-
+# Don't send the data to git in relation to privacy
+labExperiment/experiments/*/*/data/*
 
 # Ignore swap files
 *.swp

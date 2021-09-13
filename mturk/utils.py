@@ -1,14 +1,20 @@
 import boto3
 from decimal import Decimal
 from labExperiment import settings
+from celery.utils.log import get_task_logger
+loggin = get_task_logger('labexperiment.tasks')
 
-def get_mturk_connection():
+def get_mturk_connection(try_other_connection=False):
     """ Connect to the aws mturk client. Credentials are stored using awscli """
     import os
     session = boto3.session.Session(
         profile_name=os.environ.get('AMT_BOTO_PROFILE'))
 
-    if is_mturk_sandbox():
+    sandbox = settings.MTURK_SANDBOX
+    if try_other_connection:
+        sandbox = not sandbox
+
+    if sandbox:
         host = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com' 
     else:
         host = 'https://mturk-requester.us-east-1.amazonaws.com'
@@ -93,7 +99,7 @@ class ExternalQuestion:
 def qualification_dict_to_boto(quals):
     if not quals:
         return []
-    return [qualification_to_boto(k, v) for k, v in quals.iteritems()]
+    return [qualification_to_boto(k, v) for k, v in quals.items()]
 
 
 def qualification_to_boto(name, value):
@@ -150,3 +156,5 @@ def qualification_to_boto(name, value):
         qual_rec_dic['IntegerValues'] = [value]
     
     return qual_rec_dic
+
+

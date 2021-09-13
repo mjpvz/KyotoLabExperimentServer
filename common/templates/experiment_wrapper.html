@@ -3,22 +3,64 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+	<!-- <script src='https://www.google.com/recaptcha/api.js'></script> -->
+
+
     <!-- Add a block here to load in content as need -->
     {% load static %}
+    <!--  Load in the css and js file from this experiment instance -->
     <script src="/static/experiments/current/{{experiment_name}}/files/{{experiment_instance}}.js"></script> 
-    <script src="/static/utils.js"></script> 
     <link rel="stylesheet" type="text/css" href="/static/experiments/current/{{experiment_name}}/files/{{experiment_instance}}.css" />
+    <!-- Also load in the expriment wrapper files -->
+    <script src="/static/common/templates/default_wrapper.js"></script> 
+    <link rel="stylesheet" type="text/css" href="/static/common/templates/default_wrapper.css" />
+
+
+    <script> 
+        document.experiment_name = "{{experiment_name}}";
+        document.experiment_instance = "{{experiment_instance}}";
+        document.condition = "{{condition}}";
+        document.sandbox = "{{sandbox}}"
+
+        document.image_root = "/static/experiments/current/{{experiment_name}}/stimuli/"
+        
+    </script>
+
+    {% block head %} {% endblock %}
 
 </head>
 
 <body>
 
-    <p> Well, that seems to work</p>
-    <p> {{title}}</p>
-    <p> {{experiment_name}}</p>
-    <p> {{experiment_instance}}</p>
 
-    {% block content %} {% endblock %}
+    <div id="content_wrapper" class="main_element hidden">
+        {% block content %} {% endblock %}
+    </div>
+    <div id="preview_wrapper" class="main_element hidden">
+        {% block preview %} {% endblock %}
+    </div> 
+    <div id="already_done_wrapper" class="main_element hidden">
+        {% block already_done %}
+        {% endblock %}
+    </div> 
+
+    <div id="page_submit_wrapper" class="hidden">
+        <!-- AMT external submits require a form to be submitted in order to let participants continue. Considering that we don't care about this
+        form we just simulate a form submisison here so AMT will let the participant continue to other hits. 
+    -->
+        {% if sandbox %}
+            <form name="hitForm" id="hitForm" action="https://workersandbox.mturk.com/mturk/externalSubmit" method="POST"> 
+        {% else %}
+            <form name="hitForm" id="hitForm" action="https://www.mturk.com/mturk/externalSubmit" method="POST"> 
+        {% endif %}
+
+        <input type="hidden" name="assignmentId" id="assignmentId" value="NONE">
+        <input type="hidden" name="foo" id="foo" value="bar">
+        <input type="submit" id="submitButton" class="btn btn-primary" value="Submit">
+
+        </form>
+</div>
 
 </body>
 </html>

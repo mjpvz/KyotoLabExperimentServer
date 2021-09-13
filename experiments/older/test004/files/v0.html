@@ -1,0 +1,44 @@
+{% extends "experiment_wrapper.html" %}
+<!-- Leave this header in -->
+
+
+<!-- ~~~~~~~~~~~~~~~~ EDIT FROM HERE  ~~~~~~~~~~~~~~~~ -->
+<!-- ~~~~~~~~~~~~~~~~ EDIT FROM HERE  ~~~~~~~~~~~~~~~~ -->
+<!-- ~~~~~~~~~~~~~~~~ EDIT FROM HERE  ~~~~~~~~~~~~~~~~ -->
+
+{% block head %} 
+<!-- This block will be placed within the <head> tag -->
+<!-- Place <scripts> and <link> tags (this goes into the <head>) -->
+<!-- Note that the .js and .css files for this version will already be loaded in automatically!! -->
+{% endblock %}
+
+
+{% block content %}
+<!-- Within here you can place your own experiment. All HTML goes here -->
+    <p> Enter your name!</p>  <!-- Placeholder  -->
+    <input type="text" id="fname" name="fname">
+    <input type="submit" value="Submit" onclick="prepare_data()">
+{% endblock %}
+
+<!-- ~~~~~~~~~~~~~~~~ NO EDIT FROM HERE  ~~~~~~~~~~~~~~~~ -->
+<!-- ~~~~~~~~~~~~~~~~ NO EDIT FROM HERE  ~~~~~~~~~~~~~~~~ -->
+<!-- ~~~~~~~~~~~~~~~~ NO EDIT FROM HERE  ~~~~~~~~~~~~~~~~ -->
+<!-- Most likely you will not need to change anything down here!! -->
+{% block preview %} 
+    {% if description %}
+        <p> {{ description}} </p>
+    {% else %}
+        <p> To get started accept this hit! </p>
+    {% endif %}
+{% endblock %}
+
+{% block already_done %} 
+    {% if already_done %}
+        <p> {{ already_done}} </p>
+    {% else %}
+        <p> 
+            Our apologies. Our system informs us that you already did this hit, or a very similar hit. 
+            As such we can regretfully not let you perform this hit! 
+        </p>
+    {% endif %}
+{% endblock %}

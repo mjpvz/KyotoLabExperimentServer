@@ -1,0 +1,47 @@
+{
+    "experiment_instance": {
+        "v0": {
+            "participants": "5",
+            "conditions": [
+                0,
+                1,
+                2
+            ],
+            "title": "Tessy McTesty",
+            "description": "desription",
+            "keywords": "psychology test",
+            "reward": "1"
+        },
+        "v1": {
+            "participants": "3",
+            "conditions": [
+                0,
+                1
+            ],
+            "title": "Just testing the system! Easiest hit possible! ANother V",
+            "description": "Just testing out our backend system. Easiest hit possible",
+            "keywords": "psychology test",
+            "reward": "0.15",
+            "qualifications": {
+                "num_approved": 1000,
+                "perc_approved": 95,
+                "local_requirement": 1
+            }
+        },
+        "v2": {
+            "participants": "2",
+            "conditions": [
+                0
+            ],
+            "title": "Testing our system, you only need to write one word",
+            "description": "Test hit, very simple",
+            "keywords": "survey psychology test",
+            "reward": "0.05",
+            "qualifications": {
+                "num_approved": 1000,
+                "perc_approved": 95,
+                "local_requirement": 1
+            }
+        }
+    }
+}

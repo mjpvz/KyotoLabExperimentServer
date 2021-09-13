@@ -1,0 +1,16 @@
+{
+    "experiment_instance": {
+        "v1": {
+            "participants": "5",
+            "conditions": [
+                0,
+                1,
+                2
+            ],
+            "title": "Title McTesty",
+            "description": "A typical description",
+            "keywords": "test psychology",
+            "reward": "1"
+        }
+    }
+}

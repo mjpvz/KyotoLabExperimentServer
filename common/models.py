@@ -2,13 +2,16 @@ from django.db import models
 from django.utils.timezone import now
 from django.contrib.auth.models import User
 import datetime
+import json
 
-
+from labExperiment import settings
 
 from mturk.utils import get_mturk_connection, is_mturk_sandbox, \
     get_or_create_mturk_worker, extract_mturk_attr, \
     qualification_dict_to_boto, ExternalQuestion
 
+from celery.utils.log import get_task_logger
+loggin = get_task_logger('labexperiment.models')
 
 
 # Create your models here.
@@ -22,14 +25,8 @@ class EmptyModelBase(models.Model):
 class UserProfile(EmptyModelBase):
     """ Additional data on top of Django User model """
 
-    #: Django user instance (contains username, hashed password, etc).  This
-    #: also forms the primary key, so ``User`` and ``UserProfile`` instances have
-    #: the same primary key.
-    user = models.OneToOneField(
-        User, unique=True, primary_key=True, related_name="profile",on_delete=models.PROTECT)
-
     #: Mechanical Turk Worker ID
-    mturk_worker_id = models.CharField(max_length=127, blank=True)
+    amazon_worker_id = models.CharField(max_length=127, blank=True, unique=True,)
 
     #: block user (only locally; not on mturk) 
     # Workers can be blocked both in general, for all tasks, or per task through ExperimentWorker
@@ -39,7 +36,7 @@ class UserProfile(EmptyModelBase):
     blocked_reason = models.TextField(blank=True)
 
     def __str__(self):
-        return self.user.__str__()
+        return "{}, {}".format(self.id, self.amazon_worker_id)
 
     def block(self, reason='', save=True):
         """ Block a user from performing *all* MTurk tasks.  Note that Amazon
@@ -49,7 +46,7 @@ class UserProfile(EmptyModelBase):
         self.blocked_reason = reason
         if save:
             self.save()
-        print('Blocking user: {} , reason: {}'.format(self.user.username, self.blocked_reason))
+        print('Blocking user: {} , reason: {}'.format(self.amazon_worker_id, self.blocked_reason))
 
 
     def unblock(self, save=True):
@@ -73,34 +70,57 @@ class UserProfile(EmptyModelBase):
         client.notify_workers(
             Subject=subject,
             MessageText=message,
-            WorkerIds=[self.mturk_worker_id] # the API function exists to contact multiple workers, so wrap id in array
+            WorkerIds=[self.amazon_worker_id] # the API function exists to contact multiple workers, so wrap id in array
         )
+
+class MtExperiment(EmptyModelBase):
+    """ High-level separation of HITs.  """
+
+    #: experiment_name: url and filename-safe name of this experiment. 
+    experiment_name = models.CharField(max_length=32, db_index=True, unique=True)
+
+    #: whether there is a dedicated tutorial for this task
+    has_tutorial = models.BooleanField(default=False) 
+
+    def save(self, *args, **kwargs):
+        super(MtExperiment, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return 'MtExperiment object, id={}, {}'.format(self.id, self.experiment_name) 
 
 class ExperimentInstance(EmptyModelBase):
     """ Settings for creating new HITs (existing HITs do not use this data).  """
 
-    #: experiment_slug: url and filename-safe name of this experiment instance. 
-    experiment_instance_slug = models.CharField(max_length=32, db_index=True)
+    # settings used for generating new HITs, will be attached later
+    experiment = models.ForeignKey(
+        MtExperiment, related_name="experiment_instances", null=True, blank=True,on_delete=models.PROTECT)
+
+    #: experiment_name: url and filename-safe name of this experiment instance. 
+    experiment_instance_name = models.CharField(max_length=32, db_index=True)
+
+    #: AMT hit type id. This can be used to easily make hits with the same parameters
+    hit_type_sandbox = models.CharField(max_length=128, blank=True)
+    hit_type_production = models.CharField(max_length=128, blank=True)
 
     #: reward per HIT
-    reward = models.DecimalField(decimal_places=4, max_digits=8)
+    reward = models.DecimalField(decimal_places=4, max_digits=8, blank=True,null=True)
 
     #: external question info
     external_url = models.CharField(max_length=255)
 
-    #: number of output instances expected
-    num_outputs_max = models.IntegerField(default=5)
+    #: condition of this experiment Instance
+    condition = models.IntegerField(default=0)
 
-    #: number of content_type objects per hit
-    contents_per_hit = models.IntegerField(default=1)
+    #: participants (mturk assignments)
+    num_assignments = models.IntegerField(default=1)
 
     #: vertical size of the frame in pixels
     frame_height = models.IntegerField(default=800)
 
     #: metadata shown to workers when listing tasks on the marketplace
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=255,blank=True )
     description = models.TextField(blank=True)
-    keywords = models.CharField(max_length=1000)  # comma-separated list
+    keywords = models.CharField(max_length=1000, blank=True)  # comma-separated list
 
     #: time (seconds) the worker has to complete the task
     duration = models.IntegerField(default=60 * 60)
@@ -119,31 +139,47 @@ class ExperimentInstance(EmptyModelBase):
     bonus_amount = models.DecimalField(
         decimal_places=2, max_digits=8, null=True, blank=True)
 
+
+    def save(self, renew_hit_type_id=False, *args, **kwargs):
+        if renew_hit_type_id:
+            # if just created, this will always be True. Otherwise, only if something has changed
+            self.get_hit_type()
+
+        if not self.external_url:
+            self.external_url = settings.SITE_URL + \
+                '/experiments/' + self.experiment.experiment_name + \
+                '/' + self.experiment_instance_name + \
+                '/' + str(self.condition) + '/'
+
+        super(ExperimentInstance, self).save(*args, **kwargs)
+
     def get_external_question(self):
         return ExternalQuestion(
             external_url=self.external_url,
             frame_height=self.frame_height)
 
+    def expire_all_hits(self, **kwargs):
+        for hit in self.hits.all():
+            hit.expire()
 
-    def get_hit_type(**kwargs):
+
+    def get_hit_type(self, **kwargs):
         """ Returns a HIT type and also manages attaching the requirements list. 
         If no hit type exists yet with this configuration, a new one will be made """
 
         # unpack from json if string
-        if isinstance(self.requirements, basestring):
-            reqs = json.loads(reqs)
-        if isinstance(self.qualifications, basestring):
-            quals = json.loads(quals)
+        if isinstance(self.qualifications, str):
+            quals = json.loads(self.qualifications)
 
         # disable qualifications on the sandbox. 
         if settings.MTURK_SANDBOX:
-            qual_req = []
+            qual_req = [] 
         else:
             qual_req = qualification_dict_to_boto(quals)
             # count number of quals, max is ten. If more then 10, raise an error
 
         # parse rward into a string, with max 2 decimals
-        reward = self.experiment_instance.reward
+        reward = self.reward
         reward = str(round(float(reward),2))
 
         # send request to Amazon
@@ -156,53 +192,24 @@ class ExperimentInstance(EmptyModelBase):
             AutoApprovalDelayInSeconds=self.auto_approval_delay,
             QualificationRequirements=qual_req)
 
-        hit_type_id = extract_mturk_attr(response, 'HITTypeId')
-        return hit_type_id
-
-
-class MtExperiment(EmptyModelBase):
-    """ High-level separation of HITs.  """
-
-    # settings used for generating new HITs, will be attached later
-    new_hit_settings = models.ForeignKey(
-        ExperimentInstance, related_name="experiments", null=True, blank=True,on_delete=models.PROTECT)
-
-    #: experiment_slug: url and filename-safe name of this experiment. 
-    experiment_slug = models.CharField(max_length=32, db_index=True, unique=True)
-
-    #: whether there is a dedicated tutorial for this task
-    has_tutorial = models.BooleanField(default=False) 
-
-    def save(self, *args, **kwargs):
-        super(MtExperiment, self).save(*args, **kwargs)
-
-    def external_task_url(self):
-	    return settings.SITE_URL + reverse('mturk-external-task',args=(self.id,)) 
-
-    def template_name(self):
-        return os.path.join(self.template_dir, self.experiment_slug)
-
-    def template_dir(self):
-        # This contains the .html, .css and, .js files. 
-        return os.path.join('experiments','current', self.experiment_slug, 'files')
-    
-    def stimuli_dir(self):
-        return os.path.join('experiments','current', self.experiment_slug, 'stimuli')
-
-
+        if settings.MTURK_SANDBOX:
+            self.hit_type_sandbox = extract_mturk_attr(response, 'HITTypeId')
+        else:
+            self.hit_type_production = extract_mturk_attr(response, 'HITTypeId')
 
     def __str__(self):
-        return 'MtExperiment object, id={}, {}'.format(self.id, self.experiment_slug) 
+        return "exp={}, v={},condition={},id={}".format(self.experiment.experiment_name, \
+            self.experiment_instance_name, self.condition, self.id)
 
-
-
-   
 
 class ExperimentWorker(EmptyModelBase):
     """ The stats for a worker and a given experiment.  """
 
     #: Experiment being done
     experiment = models.ForeignKey(MtExperiment, related_name='experiment_workers', on_delete=models.PROTECT)
+
+    experiment_instance = models.ForeignKey(
+        ExperimentInstance, related_name="experiment_workers", null=True, blank=True,on_delete=models.PROTECT)
 
     #: Worker performing the experiment
     worker = models.ForeignKey(UserProfile, related_name='experiment_workers', on_delete=models.PROTECT)
@@ -217,13 +224,20 @@ class ExperimentWorker(EmptyModelBase):
     #: reason for blocking -- message to be displayed to the user
     blocked_reason = models.TextField(blank=True)
 
+    #: An ExperimentWorker instance is created whenever a participants opens our tasks. 
+    #: This does not nessecarily mean they actually submitted any work. On submittion, this is set to true.
+    submitted_work = models.BooleanField(default=False)
+
+    def __str__(self):
+        return "Worker for {}, {}".format(self.experiment.experiment_name, self.experiment_instance.experiment_instance_name)
+
     def contact(self, subject, message):
         """ A wrapper to call the UserProfile parent of this ExperimentWorker instance """
         self.worker.contact(subject, message)
 
 
     def block(self, reason='', all_tasks=False,
-              report_to_mturk=False, save=True):
+                report_to_mturk=False, save=True):
         """ Prevent a user from working on tasks in the future.  Unless
         ``report_to_mturk`` is set, This is only local to your server and the
         worker's account on mturk is not flagged.
@@ -243,19 +257,19 @@ class ExperimentWorker(EmptyModelBase):
             # Block on all tasks
             self.worker.block(reason=reason, save=True)
 
-
 class MtHit(EmptyModelBase):
     """ MTurk HIT (Human Intelligence Task, corresponds to a MTurk HIT object) """
 
     #: use Amazon's id
     mturk_id = models.CharField(max_length=128, primary_key=True)
-    hit_type = models.CharField(max_length=128, blank=True) # will be set by ExperimentInstance.get_hit_type
 
     experiment_instance = models.ForeignKey(
         ExperimentInstance, related_name="hits", null=True, blank=True,on_delete=models.PROTECT)
 
     experiment = models.ForeignKey(
         MtExperiment, related_name="hits", null=True, blank=True,on_delete=models.PROTECT)
+
+    workers = models.ManyToManyField(ExperimentWorker)
 
     lifetime = models.IntegerField(null=True, blank=True)
     expired = models.BooleanField(default=False)
@@ -297,29 +311,76 @@ class MtHit(EmptyModelBase):
 
 
 
-    def save(self, *args, **kwargs):
+    def save(self, connection=False, *args, **kwargs):
+
+        if not self.experiment:
+            self.experiment = self.experiment_instance.experiment
+
         if not self.mturk_id:
             self.sandbox = settings.MTURK_SANDBOX
             self.hit_status = 'A'
 
             # send request to Amazon
-            response = get_mturk_connection().create_hit_with_hit_type(
-                HITTypeId=self.hit_type.mturk_id,
-                Question=self.hit_type.get_external_question().get_as_xml(),
-                LifetimeInSeconds=self.lifetime,
-                MaxAssignments=self.max_assignments,
+            lifetime = self.lifetime if self.lifetime else self.experiment_instance.lifetime
+            connection = get_mturk_connection()
+
+            if self.sandbox:
+                hit_type = self.experiment_instance.hit_type_sandbox
+            else:
+                hit_type = self.experiment_instance.hit_type_production
+            
+            if not hit_type:
+                # it's possibe the hit type was made for the production while we are in sandbox, or the other way around
+                self.experiment_instance.get_hit_type()
+
+
+            response = connection.create_hit_with_hit_type(
+                HITTypeId=hit_type ,
+                Question=self.experiment_instance.get_external_question().get_as_xml(),
+                LifetimeInSeconds=lifetime,
+                MaxAssignments=self.experiment_instance.num_assignments,
                 RequesterAnnotation=json.dumps(
                     {
-                        u'experiment_id': self.experiment_instance.id,
+                        u'experiment': str(self.experiment.id),
+                        u'experiment_instance': str(self.experiment_instance.id),
+                        u'condition': str(self.experiment_instance.condition),
+                        
                     })
             )
-            self.id = extract_mturk_attr(response, 'HITId')
-        elif self.hit_status != 'D':  # 'D': disposed     
+            self.mturk_id = extract_mturk_attr(response, 'HITId')
 
+            # make a old-fashioned text log of creating this hit
+            from labExperiment.tasks import log_hit
+            log_hit.delay(
+                mturk_hit_id=self.mturk_id,
+                hit_type_id=hit_type, 
+                experiment_instance_id=str(self.experiment_instance.id),
+                sandbox=self.sandbox,
+                lifetime=lifetime,
+                num_assignments = self.experiment_instance.num_assignments,
+                title = self.experiment_instance.title,
+                reward = self.experiment_instance.reward,
+                keywords = self.experiment_instance.keywords,
+                description = self.experiment_instance.description,
+                condition = self.experiment_instance.condition,
+                added = self.added,
+                qualifications = self.experiment_instance.qualifications
+                )
+
+
+        elif self.hit_status != 'D':  # 'D': disposed     
+            if not connection:
+                connection = get_mturk_connection()
             # add any missing attributes
-            for k, v in MtHit.str_to_attr.iteritems():
+            for k, v in MtHit.str_to_attr.items():
                 if getattr(self, v) is None:
-                    aws_hit = self.get_aws_hit()
+                    try:
+                        aws_hit = self.get_aws_hit(connection)
+                    except connection.exceptions.RequestError:
+                        # if we can't find the hit, the hit was probably created for sandbox and 
+                        # now we are no longer on sandbox, or the other wya around. This would only happen if we are testing sandbox and running exps concurrently
+                        connection = get_mturk_connection(try_other_connection=True)
+                        aws_hit = self.get_aws_hit(connection)
                     try:
                         k = extract_mturk_attr(aws_hit, k)
                         setattr(self, v, k)
@@ -328,33 +389,41 @@ class MtHit(EmptyModelBase):
 
         super(MtHit, self).save(*args, **kwargs)
 
-    def sync_status(self, hit=None, sync_assignments=True):
+    def sync_status(self, hit=None, sync_assignments=True, connection=False):
         """ Set this instance status to match the Amazon status.  """
 
-        connection = get_mturk_connection()
         if not hit:
-            hit = self.get_aws_hit(connection)
-
+            if not connection:
+                connection = get_mturk_connection()
+            try:
+                hit = self.get_aws_hit(connection)
+            except connection.exceptions.RequestError:
+                # if we can't find the hit, the hit was probably created for sandbox and 
+                # now we are no longer on sandbox, or the other wya around. This would only happen if we are testing sandbox and running exps concurrently
+                connection = get_mturk_connection(try_other_connection=True)
+                hit = self.get_aws_hit(connection)
 
         self.hit_status = MtHit.str_to_hit_status[hit['HIT']['HITStatus']]
-        
-        for k, v in MtHit.str_to_attr.iteritems():
+
+        for k, v in MtHit.str_to_attr.items():
             if hasattr(hit, k):
                 setattr(self, v, hit['HIT'][k])
-
         if sync_assignments:
-            assignment_ids = []
 
+            if not connection:
+                connection = get_mturk_connection()
+
+            assignment_ids = []
             num_submitted = 0
             page = 1
             token = False
             while True:
                 if not token:
                     page_data = connection.list_assignments_for_hit(
-                        HITId=self.id, MaxResults=100)
+                        HITId=self.mturk_id, MaxResults=100)
                 else:
-                     page_data = connection.list_assignments_for_hit(
-                        HITId=self.id, MaxResults=100, NextToken = token)    
+                    page_data = connection.list_assignments_for_hit(
+                        HITId=self.mturk_id, MaxResults=100, NextToken = token)    
 
                 for data in page_data['Assignments']:
                     ass_id = data['AssignmentId']
@@ -380,46 +449,50 @@ class MtHit(EmptyModelBase):
             self.all_submitted_assignments = (
                 num_submitted >= int(self.max_assignments))
 
-        self.save()
+        self.save(connection)
 
-    def get_aws_hit(self, connection=None):
+    def get_aws_hit(self, connection=False):
         if not connection:
             connection = get_mturk_connection()
-        return connection.get_hit(HITId=self.id)
+        return connection.get_hit(HITId=self.mturk_id)
 
-    def expire(self, data=None, date=datetime.datetime(2015,1,1) ):
+    def expire(self, data=None, date=datetime.datetime(2015,1,1)):
         """ Expire this HIT -- no new workers can accept this HIT, but existing
         workers can finish """
 
-        if self.expired:
-            self.sync_status(data)
-            if self.expired:
-                print("Already expired..")
-                return False
-
         if not self.expired:
-            print('Expiring: {}'.format(self.id))
-            get_mturk_connection().update_expiration_for_hit(
-                HITId=self.id,
-                ExpireAt = date) # a date in the past will be expired as soon as possible
+            print('Expiring: {}'.format(self.mturk_id))
+
+            connection = get_mturk_connection()
+            try:
+                connection.update_expiration_for_hit(
+                    HITId=self.mturk_id,
+                    ExpireAt = date) # a date in the past will be expired as soon as possible
+            except connection.exceptions.RequestError:
+                connection = get_mturk_connection(try_other_connection=True)
+                connection.update_expiration_for_hit(
+                    HITId=self.mturk_id,
+                    ExpireAt = date) # a date in the past will be expired as soon as possible
+
             self.expired = True
             self.save()
 
             return True
+
     def __str__(self):
-        return self.id
+        if self.mturk_id:
+            return str(self.id)
+        else:
+            # Local only means that this hit has not yet been created through amazon
+            return str(self.id) + " (local only)"
 
     class Meta:
         verbose_name = "HIT"
         verbose_name_plural = "HITs"
 
-
-
 class MtAssignment(EmptyModelBase):
     """
     An assignment is a worker assigned to a HIT
-    NOTE: Do not create this -- they should be automatically created when a participant opens a task.
-    If something appears wrong, call sync_status() on a MtHit object
     """
 
     #: use the Amazon-provided ID as our ID
@@ -427,6 +500,13 @@ class MtAssignment(EmptyModelBase):
 
     hit = models.ForeignKey(MtHit, related_name='assignments',on_delete=models.PROTECT)
     worker = models.ForeignKey(UserProfile, related_name='assignments', null=True, blank=True,on_delete=models.PROTECT)
+    experiment_worker = models.ForeignKey(ExperimentWorker, related_name='assignments', null=True, blank=True,on_delete=models.PROTECT)
+
+    experiment_instance = models.ForeignKey(
+        ExperimentInstance, related_name="assignments", null=True, blank=True,on_delete=models.PROTECT)
+
+    experiment = models.ForeignKey(
+        MtExperiment, related_name="assignments", null=True, blank=True,on_delete=models.PROTECT)
 
     #: set by Amazon and updated using sync_status
     accept_time = models.DateTimeField(null=True, blank=True)
@@ -471,23 +551,26 @@ class MtAssignment(EmptyModelBase):
     #: json-encoded request.POST dictionary from last submit.
     post_data = models.TextField(blank=True)
 
+    #: json-encoded request.POST dictionary on suer from last submit.
+    user_data = models.TextField(blank=True)
+
     #: json-encoded request.META dictionary from last submit.
     #: see: https://docs.djangoproject.com/en/dev/ref/request-response/
     post_meta = models.TextField(blank=True)
 
     #: estimate of the time spent doing the HIT
-    time_ms = models.IntegerField(null=True, blank=True)
+    time_ms = models.IntegerField(null=True, default=0)
 
     #: estimate of the time spent doing the HIT, excluding time where the user
     #: is in another window
-    time_active_ms = models.IntegerField(null=True, blank=True)
+    time_active_ms = models.IntegerField(null=True, default=0)
 
     #: estimate of how long the page took to load; note that this ignores server
     #: response time, so this will always be ~300ms smaller than reality.
-    time_load_ms = models.IntegerField(null=True, blank=True)
+    time_load_ms = models.IntegerField(null=True, default=0)
 
     #: estimate of the wage from this HIT
-    wage = models.FloatField(null=True, blank=True)
+    wage = models.FloatField(null=True, default=0)
 
     #: If ``True``, then the async task (``mturk.tasks.mturk_submit_task``) has
     #: finished processing what the user submitted.  Note that there is a period
@@ -510,18 +593,24 @@ class MtAssignment(EmptyModelBase):
     def approve(self, feedback=None, save=True):
         """ Send command to Amazon approving this assignment """
 
+        connection = False
+
         if self.status == 'A':
-            self.hit.sync_status() 
+            connection = get_mturk_connection()
+            self.hit.sync_status(connection) 
             if self.status == 'A':
                 return
 
         if self.status == 'R':
+            if not connection:
+                connection = get_mturk_connection()
+
             print('Un-rejecting assignment: {}, experiment instance: {}, expired: {}'.format(
-                self.id, self.hit.experiment_instance.experiment_instance_slug, self.hit.expired))
+                self.id, self.hit.experiment_instance.experiment_instance_name, self.hit.expired))
             if not feedback:
                 feedback = "We have un-rejected this assignment and approved it.  We are very sorry."
             self.reject_message = feedback
-            get_mturk_connection().approve_assignment( # this can only been done upto 30 days after initial rejection
+            connection().approve_assignment( # this can only been done upto 30 days after initial rejection
                 AssignmentId=self.id, 
                 RequesterFeedback=feedback,
                 OverrideRejection = True)
@@ -531,14 +620,16 @@ class MtAssignment(EmptyModelBase):
             if not feedback:
                 feedback = "Thank you!"
 
-            client = get_mturk_connection() 
-            resp = client.get_assignment(AssignmentId=self.id)
+            if not connection:
+                connection = get_mturk_connection()
+
+            resp = connection.get_assignment(AssignmentId=self.id)
             status = extract_mturk_attr(resp,'AssignmentStatus')
             if not status == u'Approved':
                 print('Approving assignment: {}, experiment: {}, expired: {}'.format(
-                        self.id, self.hit.hit_type.experiment.experiment_slug, self.hit.expired))
+                        self.id, self.hit.experiment.experiment_name, self.hit.expired))
                 self.approve_message = feedback
-                client.approve_assignment(
+                connection.approve_assignment(
                     AssignmentId=self.id,
                     RequesterFeedback=feedback)
 
@@ -547,7 +638,7 @@ class MtAssignment(EmptyModelBase):
         if save:
             self.save()
 
-    def reject(self, feedback=None, save=True):
+    def reject(self, feedback=None, save=True, connection=False):
         """ Send command to Amazon rejecting this assignment. 
         In practise we should only reject assignmetns in extreme measures. Otherwise, approve and simply block the user.  
 
@@ -558,23 +649,25 @@ class MtAssignment(EmptyModelBase):
             ``True``) unless you are already saving the model again shortly
             after.
         """
+        if not connection:
+            connection = get_mturk_connection()
+
         if not feedback:
             feedback = "I'm sorry but you made too many mistakes."
 
         if self.status == 'A' or self.status == 'R':
-            self.hit.sync_status()
+            self.hit.sync_status(conection=connection)
             if self.status == 'A' or self.status == 'R':
                 return
 
         print('Rejecting assignment: {}, experiment: {}, expired: {}'.format(
-            self.id, self.hit.hit_type.experiment.experiment_slug, self.hit.expired))
-        get_mturk_connection().reject_assignment(
+            self.id, self.hit.experiment.experiment_name, self.hit.expired))
+        connection().reject_assignment(
             AssignmentId=self.id, RequesterFeedback=feedback)
         self.reject_message = feedback
         self.status = 'R'
         if save:
             self.save()
-
 
     def grant_bonus(self, price, reason, save=True):
 
@@ -588,7 +681,7 @@ class MtAssignment(EmptyModelBase):
         print('Granting bonus: {}s, price: ${}, reason: {}').format(self.id, price, reason)
         connection = get_mturk_connection()
         connection.send_bonus(
-            WorkerId=str(self.worker.mturk_worker_id),
+            WorkerId=str(self.worker.amazon_worker_id),
             AssignmentId=self.id,
             BonusAmount=price,
             Reason=reason
@@ -606,7 +699,6 @@ class MtAssignment(EmptyModelBase):
             
         if save:
             self.save()
-
 
     def sync_status(self, data):
         """ data: instance of boto.mturk.connection.Assignment """
@@ -632,12 +724,12 @@ class MtAssignment(EmptyModelBase):
 
         if not self.wage and (self.time_ms or self.time_active_ms):
             time = self.time_active_ms if self.time_active_ms else self.time_ms
-            self.wage = float(self.hit.hit_type.reward) * 3600000.0 / time
+            self.wage = float(self.hit.experiment_instance.reward) * 3600000.0 / time
 
         super(MtAssignment, self).save(*args, **kwargs)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     class Meta:
         verbose_name = "Assignment"

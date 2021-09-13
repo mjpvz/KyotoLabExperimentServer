@@ -1,0 +1,36 @@
+{
+    "experiment_instance": {
+        "v0": {
+            "participants": "2",
+            "conditions": [
+                0,
+                1
+            ],
+            "title": "testy mctesty",
+            "description": "another est",
+            "keywords": "",
+            "reward": "0.05",
+            "qualifications": {
+                "num_approved": 1000,
+                "perc_approved": 95,
+                "local_requirement": 1
+            }
+        },
+        "v1": {
+            "participants": "2",
+            "conditions": [
+                0,
+                1
+            ],
+            "title": "gdg",
+            "description": "dfgdfg",
+            "keywords": "df",
+            "reward": "0.04",
+            "qualifications": {
+                "num_approved": 1000,
+                "perc_approved": 95,
+                "local_requirement": 1
+            }
+        }
+    }
+}

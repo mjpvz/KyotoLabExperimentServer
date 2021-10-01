@@ -1,17 +1,15 @@
 # labExperimentKyoto
 
-Step 1 through 9 are one time. Step 10 onwards need to be done for each experiment.
+Step 1 through 9 only need to be done once. Step 10 onwards need to be done for each new experiment.
 
-Setup an AMT requester account
-1) https://requester.mturk.com/
+1)Setup an AMT requester account on https://requester.mturk.com/
 
-When created link it to an AWS account. (AMT is a service under the AWS umbrella, but you can in theory use it without making an AWS account. Now we need it)
-1) On https://requester.mturk.com/, go 'Developer' 
-2) Follow the Step1 to create an AWS account
-3) Link your AWS and AMT account in Step2. Be sure to copy your ACCESS KEY ID and SECRET ACCES KEY
-4) register for a mturk sandbox account
-
-5) On the server, make sure you have a personal user account.
+When created, line your AMT requester account to an AWS account. (AMT is a service under the AWS umbrella, but you can in theory use it without 
+making an AWS account. To use the developer mode, we need an aws account)
+2) On https://requester.mturk.com/, go 'Developer' 
+3) Follow the Step1 and onwards to create an AWS account
+4) Link your AWS and AMT account in Step2. Be sure to copy your ACCESS KEY ID and SECRET ACCES KEY
+5) register for a mturk sandbox account
 
 6) On the server, run the following command to enter the virtual enviroment
    	source /home/labExperiment/labExperimentEnv/bin/activate
@@ -41,7 +39,7 @@ When created link it to an AWS account. (AMT is a service under the AWS umbrella
     You will now be attached to the tmux celery window (either by joining it or by making a new one)
     In the celery window, make sure we are connected to the labExperiment virtual enviromnet (step 6)
     Then, run Celery
-        celery -A labExperiment worker -l INFO
+        ./manage.py celery
     You can now exit tmux by 
         ctrl+b d
 
@@ -55,7 +53,8 @@ When created link it to an AWS account. (AMT is a service under the AWS umbrella
     If you want to change settings for this version, change them in config.json. If you want to change them after running the experiment, better to create a new experiment instance
 
 13) This will have created a a .html, .js and a .css file within the 'files' folder.
-	Change the files to reflect your experiment
+	Change the files to reflect your experiment. 
+    In JS, Images can be accessed using the document.image_root variable. The condition can be accessed using the documnet.condition variable
 	After making changes execute the "./manage.py reload" command from the /home/webExperiment folder so the server will be updated
 
 14) You can test your experiment (not through AMT) by going to 
@@ -74,6 +73,8 @@ When created link it to an AWS account. (AMT is a service under the AWS umbrella
 
 17) test everything, submit data. Are your functions and html working properly?
 
-18) If yes, change  MTURK_SANDBOX to False in labExperiment.settings
+18) If yes, change  MTURK_SANDBOX to False in labExperiment.settings. This means that now the tasks will actually be submitted to mturk and not the sandbox
 
-19) Run the ./manage execute again as in step 17
+19) Repeat step 10, make sure that celery is running. Each change in code (except in .html, .css and, .js) will reload celery. If at any moment code is not valid, celery will fail. As such, make sure it is running. 
+
+20) Run the ./manage execute again as in step 17

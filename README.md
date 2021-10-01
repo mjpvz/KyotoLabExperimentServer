@@ -6,6 +6,7 @@ Step 1 through 9 only need to be done once. Step 10 onwards need to be done for 
 
 When created, line your AMT requester account to an AWS account. (AMT is a service under the AWS umbrella, but you can in theory use it without 
 making an AWS account. To use the developer mode, we need an aws account)
+
 2) On https://requester.mturk.com/, go 'Developer' 
 3) Follow the Step1 and onwards to create an AWS account
 4) Link your AWS and AMT account in Step2. Be sure to copy your ACCESS KEY ID and SECRET ACCES KEY

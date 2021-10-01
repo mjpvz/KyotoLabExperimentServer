@@ -2,7 +2,7 @@
 
 Step 1 through 9 only need to be done once. Step 10 onwards need to be done for each new experiment.
 
-1)Setup an AMT requester account on https://requester.mturk.com/
+1) Setup an AMT requester account on https://requester.mturk.com/
 
 When created, line your AMT requester account to an AWS account. (AMT is a service under the AWS umbrella, but you can in theory use it without 
 making an AWS account. To use the developer mode, we need an aws account)

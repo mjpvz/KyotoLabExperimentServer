@@ -29,7 +29,7 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 8) Follow the propts and enter the ACCES KEY ID and SECRET ACCESS KEY. For Region name choose us-east-1, default output can be left blank
 	Now, every time you run any code that makes connection with AMT it will use your AWS configuration on the server and thus your AWS account. 
 	
-9) Now run the following command to add your user profile to the database as well. 
+9) Now run the following command to add your user profile to the database as well. Note that the ADD_YOUR_NAME_HERE NEEDS be identical to the one used in step 7/8
 
 	<code> ./manage.py make_new_experimenter --name ADD_YOUR_NAME_HERE </code>
 	

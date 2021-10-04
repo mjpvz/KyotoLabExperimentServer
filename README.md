@@ -29,7 +29,11 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 8) Follow the propts and enter the ACCES KEY ID and SECRET ACCESS KEY. For Region name choose us-east-1, default output can be left blank
 	Now, every time you run any code that makes connection with AMT it will use your AWS configuration on the server and thus your AWS account. 
 	
-9) The previosu steps created a configuration. We need to make sure that each time we use the server, the correct configuration is used. We do this by add this information in the bashrc file. 
+9) Now run the following command to add your user profile to the database as well. Note that the ADD_YOUR_NAME_HERE should be identical to the one used in step 7/8
+
+	<code> ./manage.py make_new_experimenter --name ADD_YOUR_NAME_HERE </code>
+	
+10) The previosu steps created a configuration. We need to make sure that each time we use the server, the correct configuration is used. We do this by add this information in the bashrc file. 
 
 	<code> nano ~/.bashrc  </code>
 	
@@ -41,7 +45,7 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 
     save the file and reload your ssh window ( source ~/.bashrc). Now each time you log in to the server using your user account, it will automatically load in the configuration that was created in step 7/8. 
 
-10) Make sure that Celery is running in an tmux window. Celery is a tasks queue, which keeps track and executes all asyncranous tasks. This functions as a load-balancer, i.e., if more people are submitting data to the server then can be handled, this will make sure it will not loose any data. TMUX enables permanent console windows on the server that don't close. However, they are unique per user. As such, we first log into the user created to run celery and then check if it is running. If it is not running, we start it. 
+11) Make sure that Celery is running in an tmux window. Celery is a tasks queue, which keeps track and executes all asyncranous tasks. This functions as a load-balancer, i.e., if more people are submitting data to the server then can be handled, this will make sure it will not loose any data. TMUX enables permanent console windows on the server that don't close. However, they are unique per user. As such, we first log into the user created to run celery and then check if it is running. If it is not running, we start it. 
 
     	
 	First, change into the celery user account. As your useraccount should have root access, we don't need the celeryuser password. 
@@ -75,13 +79,13 @@ Now that the required accounts have been set up with AMT, we can turn to the web
      <code> exit </code>
    
 
-11) To create a new experiment. First make sure you're in the virtual enviroment (step 6)
+12) To create a new experiment. First make sure you're in the virtual enviroment (step 6)
                                 
       <code> cd /home/labExperiment</code>
                                 
       <code> ./manage.py create_new_experiment --experiment YOUR_EXP_NAME_HERE</code>
 
-12) For this experiment, make a new instance of that experiment.
+13) For this experiment, make a new instance of that experiment.
                                         
       <code> cd /home/labExperiment</code>
                                         
@@ -89,12 +93,12 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 	
       If you want to change settings for this version, change them in config.json. If you want to change them after running the experiment, better to create a new experiment instance
 
-13) This will have created a a .html, .js and a .css file within the 'files' folder.
+14) This will have created a a .html, .js and a .css file within the 'files' folder.
 	Change the files to reflect your experiment. 
     In JS, Images can be accessed using the document.image_root variable. The condition can be accessed using the documnet.condition variable
 	After making changes execute the "./manage.py reload" command from the /home/webExperiment folder so the server will be updated
 
-14) You can test your experiment (not through AMT) by going to 
+15) You can test your experiment (not through AMT) by going to 
 
 	https://labexperiment.cog.ist.i.kyoto-u.ac.jp/experiments/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE/0/
 	
@@ -103,19 +107,19 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 	https://labexperiment.cog.ist.i.kyoto-u.ac.jp/experiments/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE/2/ ..etc
 
     
-15) Once everything is working as intended launch your experiment to SANDBOX
+16) Once everything is working as intended launch your experiment to SANDBOX
     make sure "MTURK_SANDBOX" in /home/webExperiment/settings.py is "True"
 
-16) submit to AMT sandbox: 
+17) submit to AMT sandbox: 
                                             
       <code>./manage.py execute_experiment --experiment EXPERIMENT_NAME --experiment_instance EXPERIMENT_INSTANCE_NAME </code>
 	
 
 
-17) test everything, submit data. Are your functions and html working properly?
+18) test everything, submit data. Are your functions and html working properly?
 
-18) If yes, change  MTURK_SANDBOX to False in labExperiment.settings. This means that now the tasks will actually be submitted to mturk and not the sandbox
+19) If yes, change  MTURK_SANDBOX to False in labExperiment.settings. This means that now the tasks will actually be submitted to mturk and not the sandbox
 
-19) Repeat step 10, make sure that celery is running. Each change in code (except in .html, .css and, .js) will reload celery. If at any moment code is not valid, celery will fail. As such, make sure it is running. 
+20) Repeat step 10, make sure that celery is running. Each change in code (except in .html, .css and, .js) will reload celery. If at any moment code is not valid, celery will fail. As such, make sure it is running. 
 
-20) Run the ./manage execute again as in step 17
+21) Run the ./manage execute again as in step 17

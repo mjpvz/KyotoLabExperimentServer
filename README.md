@@ -10,7 +10,7 @@ making an AWS account. To use the developer mode, we need an aws account)
 2) On https://requester.mturk.com/, go 'Developer' 
 3) Follow the Step1 and onwards to create an AWS account
 4) Link your AWS and AMT account in Step2. Be sure to copy your ACCESS KEY ID and SECRET ACCES KEY
-5) register for a mturk sandbox account
+5) register for a mturk sandbox account (from the requester.mturk account that is now linked to AWS)
 
 6) On the server, run the following command to enter the virtual enviroment
 

@@ -8,14 +8,28 @@ When created, line your AMT requester account to an AWS account. (AMT is a servi
 making an AWS account. To use the developer mode, we need an aws account)
 
 2) On https://requester.mturk.com/, go 'Developer' 
-3) Follow the Step1 and onwards to create an AWS account
-4) Link your AWS and AMT account in Step2. Be sure to copy your ACCESS KEY ID and SECRET ACCES KEY
-5) register for a mturk sandbox account (from the requester.mturk account that is now linked to AWS)
+
+Here you should see a number of 'Steps'. Follow step 1, 2 and 3 on the requster.mturk webpage. Step 4 is not needed for our purposes.
+
+3) STEP 1 Create an Amazon Web Services (AWS) Account
+4) STEP 2 Link Your AWS Account with Your MTurk Requester Account (Be sure to copy your ACCESS KEY ID and SECRET ACCES KEY). If needed, the accounts can easily be unlinked later. 
+5) STEP 3 Register for the MTurk Developer Sandbox. This is needed to properly test and develop our experiments without it costing real money. This sandbox account will be linked to your requester account.
+
+
+Now that the required accounts have been set up with AMT, we can turn to the webserver. Access information will not be provided here (publicly visible) see the slack channel instead. If you do not have an account yet, ask Mitchell to set up a new account here. 
 
 6) On the server, run the following command to enter the virtual enviroment
 
    	<code> source /home/labExperiment/labExperimentEnv/bin/activate </code>
-8) Now add the ADD_YOUR_NAME_HERE in your bashrc file
+	
+7) Start the AWS configuration by running the following command. Be sure to substitute ADD_YOUR_NAMEf_HERE for your name, no spaces or special characters. This makes sure that when you run code on the server, it will be able to use your requester/sandbox account. 
+
+   	<code> aws configure --profile ADD_YOUR_NAME_HERE </code>
+	
+8) Follow the propts and enter the ACCES KEY ID and SECRET ACCESS KEY. For Region name choose us-east-1, default output can be left blank
+	Now, every time you run any code that makes connection with AMT it will use your AWS configuration on the server and thus your AWS account. 
+	
+9) The previosu steps created a configuration. We need to make sure that each time we use the server, the correct configuration is used. We do this by add this information in the bashrc file. 
 
 	<code> nano ~/.bashrc  </code>
 	
@@ -25,31 +39,28 @@ making an AWS account. To use the developer mode, we need an aws account)
         alias lab='source /home/labExperiment/labExperimentEnv/bin/activate'
         alias labCelery='celery -A labExperiment worker -l INFO'
 
-    save the file and reload your ssh window ( source ~/.bashrc) 
+    save the file and reload your ssh window ( source ~/.bashrc). Now each time you log in to the server using your user account, it will automatically load in the configuration that was created in step 7/8. 
 
-7) Start the AWS configuration by running the following command
+10) Make sure that Celery is running in an tmux window. Celery is a tasks queue, which keeps track and executes all asyncranous tasks. This functions as a load-balancer, i.e., if more people are submitting data to the server then can be handled, this will make sure it will not loose any data. TMUX enables permanent console windows on the server that don't close. However, they are unique per user. As such, we first log into the user created to run celery and then check if it is running. If it is not running, we start it. 
 
-   	<code> aws configure --profile ADD_YOUR_NAME_HERE </code>
-9) Follow the propts by entering the ACCES KEY ID and SECRET ACCESS KEY. For Region name choose us-east-1, default output can be left blank
-	Now, every time you run any code that makes connection with AMT it will use your AWS configuration on the server and thus your AWS account. 
-
-10) Make sure that Celery is running in an tmux window
-    First, see all open tmux windows
+    	First, change into the celery user account. As your useraccount should have root access, we don't need the celeryuser password. 
+    
+    	sudo su celeryuser
+    
+    	Then, see all open tmux windows
         
    	<code> tmux ls </code>
    
-   	If this returns 'Celery: ....' then that means there's already a tmux window open. 
-Attach to that tmux window
+   	If this returns 'Celery: ....' then that means there's already a tmux window open so we can attach to that tmux window
                 
    	<code> tmux attach -t Celery</code>
    
-   	If no tmux celery window was open before, make a new one
+   	If no tmux celery window was open before, we make a new one (and this automatically attached ourself to this window)
                         
    	<code> tmux new -s Celery</code>
    
-   	You will now be attached to the tmux celery window (either by joining it or by making a new one)
-In the celery window, make sure we are connected to the labExperiment virtual enviromnet (step 6)
-Then, run Celery
+   	If celery is running, everything is set. Otherwise, first make sure we are connected to the labExperiment virtual enviroment (step 6) and then run celery:
+	In the celery window, make sure we are connected to the labExperiment virtual enviromnet (step 6)
                         
    	<code> ./manage.py celery</code>
    

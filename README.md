@@ -43,21 +43,23 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 
 10) Make sure that Celery is running in an tmux window. Celery is a tasks queue, which keeps track and executes all asyncranous tasks. This functions as a load-balancer, i.e., if more people are submitting data to the server then can be handled, this will make sure it will not loose any data. TMUX enables permanent console windows on the server that don't close. However, they are unique per user. As such, we first log into the user created to run celery and then check if it is running. If it is not running, we start it. 
 
-    	First, change into the celery user account. As your useraccount should have root access, we don't need the celeryuser password. 
+    	
+	First, change into the celery user account. As your useraccount should have root access, we don't need the celeryuser password. 
+	
     
-    	sudo su celeryuser
-    
-    	Then, see all open tmux windows
+    <code> sudo su celeryuser </code>
+	
+	Then, see all open tmux windows
         
    	<code> tmux ls </code>
    
-   	If this returns 'Celery: ....' then that means there's already a tmux window open so we can attach to that tmux window
+   	If this returns 'celery: ....' then that means there's already a tmux window open so we can attach to that tmux window
                 
-   	<code> tmux attach -t Celery</code>
+   	<code> tmux attach -t celery</code>
    
    	If no tmux celery window was open before, we make a new one (and this automatically attached ourself to this window)
                         
-   	<code> tmux new -s Celery</code>
+   	<code> tmux new -s celery</code>
    
    	If celery is running, everything is set. Otherwise, first make sure we are connected to the labExperiment virtual enviroment (step 6) and then run celery:
 	In the celery window, make sure we are connected to the labExperiment virtual enviromnet (step 6)
@@ -67,6 +69,10 @@ Now that the required accounts have been set up with AMT, we can turn to the web
    	You can now exit tmux by 
                         
       <code>ctrl+b d</code>
+      
+      and return to your own user account with
+      
+     <code> exit </code>
    
 
 11) To create a new experiment. First make sure you're in the virtual enviroment (step 6)

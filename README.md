@@ -22,7 +22,7 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 
    	<code> source /home/labExperiment/labExperimentEnv/bin/activate </code>
 	
-7) Start the AWS configuration by running the following command. Be sure to substitute ADD_YOUR_NAMEf_HERE for your name, no spaces or special characters. This makes sure that when you run code on the server, it will be able to use your requester/sandbox account. 
+7) Start the AWS configuration by running the following command. Be sure to substitute ADD_YOUR_NAMEf_HERE for your name. The name is a string variable that can be anything as long as it identifies you and used no spaces or special characters. This makes sure that when you run code on the server, it will be able to use your requester/sandbox account. 
 
    	<code> aws configure --profile ADD_YOUR_NAME_HERE </code>
 	

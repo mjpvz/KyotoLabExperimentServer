@@ -1,6 +1,6 @@
 # labExperimentKyoto
 
-Step 1 through 9 only need to be done once. Step 10 onwards need to be done for each new experiment.
+Step 1 through 10 only need to be done once. Step 11 onwards need to be done for each new experiment.
 
 1) Setup an AMT requester account on https://requester.mturk.com/
 

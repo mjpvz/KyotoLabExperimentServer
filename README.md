@@ -1,22 +1,24 @@
-# labExperimentKyoto
+If you wish to run experiments on Amazon Mechnical Turk, you will first need to follow these steps once. 
+If you instead wish to run experiments on Prolific or just locally, you can skip ahead to step 11. 
+If you have already completed the set up and used the server before, you can continue straight ahead to step 12. 
 
-Step 1 through 10 only need to be done once. Step 11 onwards need to be done for each new experiment.
+# Setting up for Amazon Mechnical Turk
 
 1) Setup an AMT requester account on https://requester.mturk.com/
 
-When created, link your AMT requester account to an AWS account. (AMT is a service under the AWS umbrella, but you can in theory use it without 
-making an AWS account. To use the developer mode, we need an aws account)
+	When created, link your AMT requester account to an AWS account. (AMT is a service under the AWS umbrella, but you can in theory use it without 
+	making an AWS account. To use the developer mode, we need an aws account)
 
 2) On https://requester.mturk.com/, go 'Developer' 
 
-Here you should see a number of 'Steps'. Follow step 1, 2 and 3 on the requster.mturk webpage. Step 4 is not needed for our purposes.
+	Here you should see a number of 'Steps'. Follow step 1, 2 and 3 on the requster.mturk webpage. Step 4 is not needed for our purposes.
 
 3) STEP 1 Create an Amazon Web Services (AWS) Account
 4) STEP 2 Link Your AWS Account with Your MTurk Requester Account (Be sure to copy your <code>ACCESS KEY ID</code> and <code>SECRET ACCES KEY</code>). If needed, the accounts can easily be unlinked later. 
 5) STEP 3 Register for the MTurk Developer Sandbox. This is needed to properly test and develop our experiments without it costing real money. This sandbox account will be linked to your requester account.
 
 
-Now that the required accounts have been set up with AMT, we can turn to the webserver. Access information will not be provided here (publicly visible) see the slack channel instead. If you do not have an account yet, ask Mitchell to set up a new account here. 
+	Now that the required accounts have been set up with AMT, we can turn to the webserver. Access information will not be provided here (publicly visible) see the slack channel instead. If you do not have an account yet, ask Mitchell to set up a new account here. 
 
 6) On the server, run the following command to enter the virtual enviroment
 
@@ -33,27 +35,43 @@ Now that the required accounts have been set up with AMT, we can turn to the web
 
 	<code> ./manage.py make_new_experimenter --name ADD_YOUR_NAME_HERE </code>
 	
-10) The previosu steps created a configuration. We need to make sure that each time we use the server, the correct configuration is used. We do this by add this information in the bashrc file. 
+10) The previous steps created an AMT configuration. We need to make sure that each time we use the server, the correct configuration is used. We do this by add this information in the bashrc file. On Ubuntu, a bashrc file is automatically created for each user and each time that user connects to the server, this file will be loaded. As such, any settings declared in this file will be loaded only for this user. 
 
 	<code> nano ~/.bashrc  </code>
 	
-	go all the way to the bottom of the file and add the following
+	go all the way to the bottom of the file and add the following line
     
         AMT_BOTO_PROFILE="ADD_YOUR_NAME_HERE"; export AMT_BOTO_PROFILE
+
+    save the file and reload your ssh window with <code> source ~/.bashrc </code>. Now each time you log in to the server using your user account, it will automatically load in the configuration that was created in step 7/8. 
+    
+# First time creating experiments.
+
+11) First we will add some shortcuts to our Ubuntu user profile via the bashrc file. On Ubuntu, a bashrc file is automatically created for each user and each time that user connects to the server, this file will be loaded. As such, any settings or shortcuts declared in this file will be loaded for this user. 
+
+	<code> nano ~/.bashrc  </code>
+	
+	go all the way to the bottom of the file and add the two following lines
+    
         alias lab='source /home/labExperiment/labExperimentEnv/bin/activate'
         alias labCelery='celery -A labExperiment worker -l INFO'
 
-    save the file and reload your ssh window ( source ~/.bashrc). Now each time you log in to the server using your user account, it will automatically load in the configuration that was created in step 7/8. 
+    save the file and reload your ssh window with <code> source ~/.bashrc </code>. Now each time you log in to the server using your user account, it will automatically load in these shortcuts. We only need to do this once. 
+    
+# Running an experiment. 
 
-11) Make sure that Celery is running in an TMUX window. Celery is a tasks queue, which keeps track and executes all asyncranous tasks. This functions as a load-balancer, i.e., if more people are submitting data to the server then can be handled, this will make sure it will not loose any data. TMUX enables permanent console windows on the server that don't close. However, they are unique per user. As such, we first log into the user created to run celery and then check if it is running. If it is not running, we start it. 
+12) Run the following command to enter the virtual enviroment. This will add a <code> (labExperimentEnv) </code> in front of your username on the server if it worked. 
+
+   	<code> source /home/labExperiment/labExperimentEnv/bin/activate </code>
+
+13) Make sure that Celery is running in an TMUX window. **Celery** is a tasks queue, which keeps track and executes all tasks running in the background. This functions as a load-balancer, i.e., if many people are submitting data to the server at the same time, the server might not be able to handle it. Celery will make sure the tasks are handled one at a time and will make sure it will not loose any data and/or fail any tasks. **TMUX** enables permanent console windows on the server that don't close. That is, if you start any program in your current console, and close the console the program will be terminated. TMUX is one way to keep programs running, even when closing the terminal. However, they are unique per user. As such, we must first log into the user that was created specifically to run celery and then check if it is running. If it is not running, we start it. 
 
     	
-	First, change into the celery user account. As your useraccount should have root access, we don't need the celeryuser password. 
+	First, change into the celery user account with the following command. As your useraccount should have root access, we don't need the celeryuser password. 
 	
-    
     <code> sudo su celeryuser </code>
 	
-	Then, see all open TMUX windows
+	Then, we shall see if there are any open TMUX windows with the following command. Unless something went wrong with the server, there should indeed already be a TMUX window. 
         
    	<code> tmux ls </code>
    
@@ -61,71 +79,94 @@ Now that the required accounts have been set up with AMT, we can turn to the web
                 
    	<code> tmux attach -t celery</code>
    
-   	If no TMUX celery window was open before, we make a new one (and this automatically attached ourself to this window)
+   	If instead no TMUX celery window was open before, we make a new one automatically attached ourself to this new window. 
                         
    	<code> tmux new -s celery</code>
    
-   	If celery is running, everything is set. Otherwise, first make sure we are connected to the labExperiment virtual enviroment (step 6) and then run celery:
-	In the celery window, make sure we are connected to the labExperiment virtual enviromnet (step 6)
+   	If celery is running, everything is already set up and we can continue to step 13. You can see if celery is running if the input starts all the way at the left, and if you can not see <code> (labExperiment) your_username </code> on the input line. Otherwise, we will start Celery. First make sure we are connected to the labExperiment virtual enviroment (step 12) and then run celery:
                         
-   	<code> ./manage.py celery</code>
+   	<code> /home/labExperiment/manage.py celery</code>
    
-   	You can now exit tmux by 
+   	You can now exit tmux by using
                         
       <code>ctrl+b d</code>
       
-      and return to your own user account with
+      Now we are still logged in as the Celery useraccount. So return to your own user account with, this should change 
       
      <code> exit </code>
    
 
-12) To create a new experiment. First make sure you're in the virtual enviroment (step 6)
+14) To create a new experiment project,  perform this step. If you already have an experimental project, skip to the next step.  First make sure you're in the virtual enviroment (step 12) and then execute the following.
                                 
       <code> cd /home/labExperiment</code>
+      
+      Then execute the following command and carefully read the text in the console. It will further guide you to create this experiment. 
                                 
-      <code> ./manage.py create_new_experiment --experiment YOUR_EXP_NAME_HERE</code>
+      <code> ./manage.py create_new_experiment </code>
+      
+      Now a new experiment project has been created. On the server an 'experiment project' is the overarching concept that connects multiple experiments. For example, 
+      if we want to run a number of visual search experiments, each with slightly different stimuli or parameters, then all these experiments would belong to a single experiment project. This allows us to keep similar experiments collected within the same project, and keeps everything structured and clean.
 
-13) For this experiment, make a new instance of that experiment.
-                                        
+
+15) For this experiment project, make a new instance of that experiment. In one experiment project we can have multiple different instances. First make sure you're in the virtual enviroment (step 12) and then execute the following.
+                                
       <code> cd /home/labExperiment</code>
-                                        
-      <code> ./manage.py create_new_experiment_instance --experiment YOUR_EXP_NAME_HERE --experiment_instance YOUR_EXP_INSTANCE_NAME_HERE </code>
+                                                                               
+      <code> ./manage.py create_new_experiment_instance </code>
+      
+      The command will ask some questions. Read them carefully. Once this is completed, the command will have created a <code>.html</code>, <code>.js</code> and a <code>.css</code> file within the 'files' folder.
 	
-      If you want to change settings for this version, change them in config.json. If you want to change them after running the experiment, better to create a new experiment instance
+	
+16) Whenever we make any changes to the .js files, we need to tell the server those files have been updated. Creating the files, like in the previous step also counts as a change. Thus, now and **each time you make changes to the .js files**, we run the following commands. If we do not run this step, the server will keep using the old .js files. In some cases this might look like there is no problem, but it can cause to big errors! 
 
-14) This will have created a a <code>.html</code>, <code>.js</code> and a <code>.css</code> file within the 'files' folder.
-	Change the files to reflect your experiment. 
-    In JS, Images can be accessed using the document.image_root variable. The condition can be accessed using the document.condition variable
-    
-	After making changes, reload the files so the servers knows to cache the newest version by running the following command
-	
-	<code> cd /home/labExperiment</code>
+	First, go to the correct directory
+	<code> cd /home/labExperiment</code> and then run:
 	
 	<code> ./reload.sh </code> 
 	
-
-15) You can test your experiment (not through AMT) by going to 
-
-	https://labexperiment.cog.ist.i.kyoto-u.ac.jp/experiments/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE/0/
 	
-    Note that the last part of the url (/0/) indicates the condition. If you have multiple conditions, you can see the next conditions like so...
+17) You can now 'see' your experiment by navigating the browser to the following URL, be sure to change the URL with your names
+
+	https://labexperiment.cog.ist.i.kyoto-u.ac.jp/experiments/YOUR_EXP_PROJECT_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE/0/
+	
+    Note that the last part of the url (, i..e, /0/) indicates the condition. If you have multiple conditions, you can see the next conditions like so...
 	https://labexperiment.cog.ist.i.kyoto-u.ac.jp/experiments/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE/1/
 	https://labexperiment.cog.ist.i.kyoto-u.ac.jp/experiments/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE/2/ ..etc
+	If you don't want to use conditions, you can just stay using the /0/ version without any issue. 
+	
+	
+18) Now update the code within the .html, .css and .js files to reflect your desired experiment. In the .js file, the current condition can be accessed using the document.condition variable. For images, place them within the <code> stimuli </code> folder. The path to the images can accessed with the document.image_root folder. 
 
+    The images themselves will be hosted at
     
-16) Once everything is working as intended launch your experiment to SANDBOX
-    make sure <code>MTURK_SANDBOX</code> in /home/webExperiment/settings.py is "True"
+    https://labexperiment.cog.ist.i.kyoto-u.ac.jp/static/experiments/current/YOUR_EXP_NAME_HERE/stimuli/STIMULI_FILE_NAME.jpg" 
 
-17) submit to AMT sandbox: 
-                                            
+19) Once the experiment is finished, call the <code> submit_data </code> function, and pass the data you wish to save on the server along as a dictionary. Test if this works a few times. If everything appears to work, you can move on to the next section. 
+
+# Run the experiment and gather data
+
+20) Repeat step 13 and make sure that celery is running. Each change in code (except in <code>.html</code>, <code>.css</code> and, <code>.js</code>) will reload celery. If at any moment code is not valid (which is very likely), celery will fail and not start until we do it manually. As such, make sure it is running. 
+
+21) If you want to use prolific go to the prolific secetion.  If you AMT, continue with steps . 
+    
+    
+# Run the experiment and gather data with PROLIFIC - this currently does not work! Check back later. 
+
+22) TODO figure out how prolific works..
+  
+    
+# Run the experiment and gather data on AMT - this currently does not work! Check back later. 
+  
+23) Once everything is working as intended launch your experiment to SANDBOX
+    Change the <code>MTURK_SANDBOX</code> variable in /home/webExperiment/settings.py to "True"
+
+24) submit to AMT sandbox. This means it will go the AMT platform, but it won't cost any money yet. As such, we can do some final checks. 
+      
       <code>./manage.py execute_experiment --experiment EXPERIMENT_NAME --experiment_instance EXPERIMENT_INSTANCE_NAME </code>
 	
 
+25) Go to the mechnical turk sandbox and look for the experiment we just submitted there. Test everything, submit data, etc. Are your functions and html working properly?
 
-18) test everything, submit data. Are your functions and html working properly?
+26) If everything appears to work, change <code>MTURK_SANDBOX</code> to False in labExperiment.settings. This means that now the tasks will actually be submitted to mturk and not the sandbox. This will require money to be associated with your AMT account. 
 
-19) If yes, change  <code>MTURK_SANDBOX</code> to False in labExperiment.settings. This means that now the tasks will actually be submitted to mturk and not the sandbox
-
-20) Repeat step 10, make sure that celery is running. Each change in code (except in <code>.html</code>, <code>.css</code> and, <code>.js</code>) will reload celery. If at any moment code is not valid, celery will fail. As such, make sure it is running. 
-
-21) Run the ./manage execute again as in step 17
+27) Run the ./manage execute again as in step 18. This time it will send experiments to AMT and participants will be able to see and do your tasks. 

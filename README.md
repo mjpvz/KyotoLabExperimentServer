@@ -173,7 +173,7 @@ If you have already completed the set up and used the server before, you can con
 29) Continue with the AUDIENCE and STUDY COST sections. You can test everything with the PREVIEW button. If everything works (be sure to check if data is succesfully submitted to the server!) you can PUBLISH the experiment! 
   
     
-# Run the experiment and gather data on AMT - this currently does not work since some changes! No rush to update this for now. 
+# Run the experiment and gather data on AMT - this currently does not work after some changes were made! No rush to update this for now. 
   
 23) Once everything is working as intended launch your experiment to SANDBOX
     Change the <code>MTURK_SANDBOX</code> variable in /home/webExperiment/settings.py to "True"

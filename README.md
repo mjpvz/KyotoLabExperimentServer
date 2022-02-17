@@ -152,10 +152,26 @@ If you have already completed the set up and used the server before, you can con
     
 # Run the experiment and gather data with PROLIFIC - this currently does not work! Check back later. 
 
-22) TODO figure out how prolific works..
+22) On prolific, click on <code> New Study </code> and fill out <code> Study Details </code> as desired. 
+
+
+24) At the <code> STUDY LINK </code> section, first enter the URL to your experiment (see step 18). For each condition, create a separate study. 
+
+
+26) After entering the URL, click the <code>  I'll use URL parameters  </code> button. This will add some important parameters to the URL. Without these parameters the experiment will not be able to be completed.  
+
+27) At the <code> STUDY COMPLETION </code> section, click the <code>  I'll redirect them using an URL  </code> option. 
+
+28) Copy the URL that prolific generated, which should look something like this <code> https://app.prolific.co/submissions/complete?cc=COMPLETION_CODE </code> and place it into the .html file for your experiment (experiments/current/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE.html. In the HTML you will see a variable:
+
+      window.PROLIFIC_SUBMISSION_URL = 'REPLACE_WITH_THE_URL_PROLIFIC_GAVE_YOU_IF_RUNNING_ON_PROLIFIC'
+      
+      Replace this value with the URL we just copied. 
+      
+29) Continue with the AUDIENCE and STUDY COST sections. You can test everything with the PREVIEW button. If everything works (be sure to check if data is succesfully submitted to the server!) you can PUBLISH the experiment! 
   
     
-# Run the experiment and gather data on AMT - this currently does not work! Check back later. 
+# Run the experiment and gather data on AMT - this currently does not work since some changes! No rush to update this for now. 
   
 23) Once everything is working as intended launch your experiment to SANDBOX
     Change the <code>MTURK_SANDBOX</code> variable in /home/webExperiment/settings.py to "True"

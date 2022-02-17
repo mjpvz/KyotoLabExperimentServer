@@ -1,4 +1,4 @@
-If you wish to run experiments on Amazon Mechnical Turk, you will first need to follow these steps once. 
+If you wish to run experiments on Amazon Mechnical Turk, you will first need to follow steps 1 through 10. You will only need this once. 
 If you instead wish to run experiments on Prolific or just locally, you can skip ahead to step 11. 
 If you have already completed the set up and used the server before, you can continue straight ahead to step 12. 
 

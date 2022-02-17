@@ -63,6 +63,8 @@ If you have already completed the set up and used the server before, you can con
 12) Run the following command to enter the virtual enviroment. This will add a <code> (labExperimentEnv) </code> in front of your username on the server if it worked. 
 
    	<code> source /home/labExperiment/labExperimentEnv/bin/activate </code>
+	
+	You should also be able to use <code> lab </code> instead, as it is a shortcut we created in step 11. 
 
 13) Make sure that Celery is running in an TMUX window. **Celery** is a tasks queue, which keeps track and executes all tasks running in the background. This functions as a load-balancer, i.e., if many people are submitting data to the server at the same time, the server might not be able to handle it. Celery will make sure the tasks are handled one at a time and will make sure it will not loose any data and/or fail any tasks. **TMUX** enables permanent console windows on the server that don't close. That is, if you start any program in your current console, and close the console the program will be terminated. TMUX is one way to keep programs running, even when closing the terminal. However, they are unique per user. As such, we must first log into the user that was created specifically to run celery and then check if it is running. If it is not running, we start it. 
 

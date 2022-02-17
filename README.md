@@ -137,13 +137,59 @@ If you have already completed the set up and used the server before, you can con
 	If you don't want to use conditions, you can just stay using the /0/ version without any issue. 
 	
 	
-18) Now update the code within the .html, .css and .js files to reflect your desired experiment. In the .js file, the current condition can be accessed using the document.condition variable. For images, place them within the <code> stimuli </code> folder. The path to the images can accessed with the document.image_root folder. 
+18) Now update the code within the .html, .css and .js files to reflect your desired experiment. If you are going to run a psychopy/psychoJS experiment, just skip ahead to step 20! In the .js file, the current condition can be accessed using the document.condition variable. For images, place them within the <code> stimuli </code> folder. The path to the images can accessed with the document.image_root folder. 
 
     The images themselves will be hosted at
     
     https://labexperiment.cog.ist.i.kyoto-u.ac.jp/static/experiments/current/YOUR_EXP_NAME_HERE/stimuli/STIMULI_FILE_NAME.jpg" 
 
 19) Once the experiment is finished, call the <code> submit_data </code> function, and pass the data you wish to save on the server along as a dictionary. Test if this works a few times. If everything appears to work, you can move on to the next section. 
+
+# Adding the PsychoPY/PsychoJS code to the experiment. 
+
+20) In the PsychoPy builder, make sure that your experiment works properly. Remember that if you use any Python specific code (python packages for example) it will not work in JS. 
+
+21) If your PsychoPy experiment uses stimuli, add the stimuli to the "online data" as follows. 
+
+	Click "Edit Experiment Settings", i.e., the settings icon. 
+	Go to the "Online" tab
+	At the "Additional Resources" section, hit the + and add each stimuli you will use (you can select multiple at once)
+	Click OK
+
+20) In the PsychoPy Builder, click the `Compile to JS`button. It's the yellow button that says JS. 
+
+21) The previous step will open a PsychoPy coder program. Inside it you will see a .js file with JS code. Copy the contents of the file (i.e., select all lines and copy, do not copy the file itself) and paste it into your experiments .js file on the server, which is located at experiments/current/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE.js
+Be careful not to overwrite the last few lines that are already in the .js file!
+	
+22) The first non-commented line you just pasted into the file will look something like:
+	
+	`import { core, data, sound, util, visual } from './lib/psychojs-2021.2.3.js';`
+	
+	change this line into
+	
+	`import { core, data, sound, util, visual } from 'psychojs/psychojs-2021.2.3.js'`
+	
+	If there are any other lines that contain `import` and `./lib/`  replace these lines in the same way, i.e., replace the `./lib/` with 'psychojs/`
+	
+23) We added the images to PsychoPy in the builder with step 21. However, PsychoJS does not know where to look for the images. As such, we must update the names and paths. If you do not have any stimuli, you can skip this step. Open the .js file on the server ( experiments/current/YOUR_EXP_NAME_HERE/YOUR_EXP_INSTANCE_NAME_HERE.js ):
+
+	Look for `psychoJS.start({`
+	
+	Inside of it you will see all your stimuli. Each stimuli item will have its own line that looks something like this:
+	
+        `{ 'name': 'some/path/on/your/local/machine/SOME_STIMULI.png', 'path': 'some/path/on/your/local/machine/SOME_STIMULI.png' },`
+
+	Change it too look like this. That is, remove everything except the filename in the `name` portion and add `/static/experiments/current/test_psychoJS/stimuli/` to the stimuli name in the `path` section. 
+
+        { 'name': 'SOME_STIMULI.png', 'path': '/static/experiments/current/YOUR_EXP_NAME_HERE/stimuli/SOME_STIMULI.png' },
+	
+	Once each line has been changed, save the .js file. 
+
+
+23) Since we made changes to a .js file, we need to execute line 16 again.
+
+24) Test your experiment! See step 17! Hopefully everything works but PsychoJS can be quite tricky... If it didn't work, it is likely that converting Python to JS did not work properly! Make sure to check.  If you're stuck, you can probably ask Mitchell for help! 
+
 
 # Run the experiment and gather data
 
